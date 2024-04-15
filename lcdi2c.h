@@ -123,8 +123,8 @@
 	uint8_t _displaycontrol;
 	uint8_t _displaymode;
 	uint8_t _numlines;
-	uint8_t _cols;
-	uint8_t _rows;
+	uint8_t _cols; // = 16;
+	uint8_t _rows; // = 2;
 	uint8_t _backlightval;
 //};
 

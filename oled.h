@@ -49,7 +49,7 @@
     void lcd_putc(char c);                // print character on screen at TEXTMODE
 	
 	//void oledWriteChar1x(char letter, unsigned char page, unsigned char column);
-	void oledPutString(unsigned char *ptr,unsigned char page, unsigned char col);
+	void oledPutString(char *ptr,unsigned char page, unsigned char col);
 	void FillDisplay(unsigned char data);
 
 	

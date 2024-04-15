@@ -226,7 +226,7 @@ void oledWriteChar1x(char letter, unsigned char page, unsigned char column)
 	return;
 }
 
-void oledPutString(unsigned char *ptr,unsigned char page, unsigned char col)
+void oledPutString(char *ptr,unsigned char page, unsigned char col)
 {
 	unsigned char i;
 	

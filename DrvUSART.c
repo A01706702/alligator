@@ -34,6 +34,8 @@ Description : Original version.
 ***					            MODULES USED									***													  	
 **********************************************************************************/ 
 #include "allinone.h"
+#include <stdbool.h>
+extern bool data_received;
 	
 /**********************************************************************************
 ***					     	 MACROS AND DEFINITIONS								***													  	
@@ -97,9 +99,11 @@ void DrvUSART_SendChar(u8 u8Char)
 /**
  * @fn u8 DrvUSART_RecvChar(void)
  */
+
 u8 DrvUSART_GetChar(void)
 {
 	while(!(UCSR0A & (1 << RXC0)));
+	data_received = true;
 	return UDR0;
 }
 
