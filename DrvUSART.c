@@ -35,6 +35,7 @@ Description : Original version.
 **********************************************************************************/ 
 #include "allinone.h"
 #include <stdbool.h>
+#include <stddef.h>
 extern bool data_received;
 	
 /**********************************************************************************

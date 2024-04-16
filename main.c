@@ -15,7 +15,7 @@
  * Se implementa una maquina de estados para mandar y recibir comandos con el BG95
  */ 
 
-// STATE MACHINE!!!! //
+// MAIN SIMPLIFIED //
 #ifndef F_CPU
 #define F_CPU 9216000UL
 #endif
@@ -24,38 +24,22 @@
 #include <util/delay.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <string.h>
 #include "oled.h"
 #include "lcdi2c.h"
 #include "DrvUSART.h"
-#include "DrvSYS.h" //debug (add)
-#include <stdio.h>
+#include "DrvSYS.h"
+#include "state_machine.h"
 
 // global variables
-typedef enum {
-	// states
-	IDLE,
-	SENDING_AT_COMMANDS,
-	PROCESSING_RESPONSES,
-	READING_SENSORS,
-	READING_GPS
-} State;
-State currentState = SENDING_AT_COMMANDS; //does one cycle, then stops at IDLE
 char *MESSAGE; //format: "at\r\n"
-char INBUFF[0x20] = {0};
+char INBUFF[0x40] = {0}; //change size (?)
 bool data_received = false; // flag if communication is done
 
 // Function prototypes
 extern void init_modules(void); //external definitions
-void leeUART(void);
-void showBuff(void);
-void printBuff(char *);
-void storeUART(void);
-void show_stored(void);
-float readTemperature(void);
-void readLight();
-void readGPS(void);
-void sendATCommands(char *);
-void controlLED(bool state);
 void pruebaOLED(void);
 
 int main(void)
@@ -65,239 +49,53 @@ int main(void)
 	DrvTWI_Init(); // Initialize I2C
 	lcd_inicio(); // Initialize LCD with I2C
 	//SEI(); //enable interrupts
-	//pruebaOLED(); //debug
 	
 	DDRD |= (0x01<<PORTD1); //OUT PD1
 	PORTD = 0x06; //High PD1 y PD2
 	DDRB = 0xff; //OUT PB
 	_delay_ms(500);
 
-	MESSAGE = "at\r\n";
-	
+	MESSAGE = "ati\r\n";
 	clear(); // clear LCD
 	lcdSendStr("BALATRON");
+	initStateMachine();
 	
 	while (1)
 	{
-		switch (currentState){
-			//// Idle state: wait for a button press or other event ////
-			case IDLE:
-			{	
-				//lcdSendStr("idle");
-				//lcdSendStr(INBUFF); //debug: funciona pero mejorar
-				if (!(PIND & (1 << 2))) { // PD2->1 (wait for button pressed)
-					MESSAGE = "ATI\r\n"; //change message (debug)
-					currentState = SENDING_AT_COMMANDS;
-				}
-				break;
-			}
-			
-			//// 1 Sending AT commands state (first state) ////
-			case SENDING_AT_COMMANDS:
-			{
-				//lcdSendStr("SATC ");
-				controlLED(true); // LED on while communicating
-				_delay_ms(500);
-				sendATCommands(MESSAGE);
-				controlLED(false); // LED off when done
-				currentState = READING_SENSORS;
-				break;
-			}
-			
-			//// 2 Reading temperature state ////
-			case READING_SENSORS:
-			{
-				//lcdSendStr("temp: ");
-				
-				//readTemperature();
-				//char str[20];
-				//sprintf(str,"%f",readTemperature());
-				//lcdSendStr(str);
-				
-				//lcdSendStr("light: ");
-				//readLight();
-				
-				currentState = READING_GPS;
-				break;
-			}
-				
-			//// 3 Reading GPS state ////
-			case READING_GPS:
-			{
-				//lcdSendStr("gps ");
-				MESSAGE = "ATI\r\n";
-				sendATCommands(MESSAGE);
-				
-				//ask for GPS coords from BG95
-				//sendATCommands("ATI\r\n"); //OK
-				//sendATCommands("AT+QGPS=1\r\n"); //OK
-				//sendATCommands("AT+QGPSLOC?"); //GPS COORDS
-				char COORDS[0x20] = {0};
-				for (int i = 0; i < sizeof(INBUFF)/sizeof(INBUFF[0]); i++) {
-					COORDS[i] = INBUFF[i];
-				}
-				//printBuff(COORDS);
-				//lcdSendStr(COORDS);
-				
-				// GNSS off:
-				//sendATCommands("AT+QGPSEND "); //OK
-				
-				currentState = IDLE; // Transition back
-				break;
-			}
-
-			default:
-			break;
-		}
+		computeStateMachine();
+		//// searching in string
+		//char search[] = "ati\r\r\nQuectel\r\nBG95-M3\r\nRevision: BG95M3LAR02A03\r\n\r\nOK\r\n";
+		//char *ptr = strstr(INBUFF, search);
+		//if (ptr != NULL) {
+			//clear();
+			//lcdSendStr("yea");
+		//}
+		//else {
+			//clear();
+			//lcdSendStr("nel");
+		//}
+		
+		//iterating through a string
+		//char *str = "An example.";
+		//size_t i = 0;
+		//while (str[i] != '\0') {
+			//lcdSendChar(str[i]);
+			//i++;
+		//}
 		_delay_ms(100);
 	}
 	return 0;
 }
 
-//NOT STORING LF AND CR
-void storeUART() {
-	int i = 0;
-	char caracter;
-	//bool sequenceFound = false;
-	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
-	while (1) {
-		caracter = DrvUSART_GetChar(); //aqui cambia la bandera data_received //poner una interrupcion
-		if (data_received) { // Check if data is available
-			if (caracter == 0x0A) { // Line feed
-				// Do nothing, skip storing it
-			}
-			else if (caracter == 0x0D) { // Carriage return
-				// Do nothing, skip storing it
-			}
-			else {
-				INBUFF[i] = caracter;
-				i++;
-			}
-			// iterate until receiving "OK\r\n"
-			receivedBuffer[0] = receivedBuffer[1];
-			receivedBuffer[1] = receivedBuffer[2];
-			receivedBuffer[2] = receivedBuffer[3];
-			receivedBuffer[3] = caracter;
-			if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K' &&	receivedBuffer[2] == '\r' && receivedBuffer[3] == '\n') {
-				data_received = false;
-				break;
-			}
-		}
-		else {
-			lcdSendStr("No data");
-			break; // to not get stuck
-		}
-	}
-	INBUFF[i] = '\0'; // null terminate INBUFF to treat as string
-}
-//NOT SHOWING LF AND CR
-void show_stored(){
-	int i = 0;
-	char caracter=0x00;
-	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
-	clear();
-	while (1) {
-		caracter = INBUFF[i];
-		i++;
-		lcdSendChar(caracter);
-		// iterate until receiving "OK"
-		receivedBuffer[0] = receivedBuffer[1];
-		receivedBuffer[1] = caracter;
-		if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K') {
-			data_received = false;
-			break;
-		}
-	}
-}
-
-//with LF and CR
-void leeUART() {
-	int i = 0;
-	char caracter;
-	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
-	while (1) {
-		caracter = DrvUSART_GetChar(); //aqui cambia la bandera data_received //poner una interrupcion
-		if (data_received) { // Check if data is available
-			INBUFF[i] = caracter;
-			i++;
-			// iterate until receiving "OK\r\n"
-			receivedBuffer[0] = receivedBuffer[1];
-			receivedBuffer[1] = receivedBuffer[2];
-			receivedBuffer[2] = receivedBuffer[3];
-			receivedBuffer[3] = caracter;
-			if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K' &&	receivedBuffer[2] == '\r' && receivedBuffer[3] == '\n') {
-				data_received = false;
-				break;
-			}
-		}
-		else {
-			lcdSendStr("No data");
-			break; // to not get stuck
-		}
-	}
-	//INBUFF[i] = '\0'; // null terminate INBUFF to treat as string
-}
-//with LF and CR
-void showBuff(){
-	int i = 0;
-	char caracter=0x00;
-	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
-	clear();
-	while (1) {
-		caracter = INBUFF[i];
-		i++;
-		if (caracter==0x0a) {
-			lcdSendStr("lf"); //debug poner
-		}
-		else {
-			if (caracter==0x0d) {
-				lcdSendStr("cr"); //debug poner
-			}
-			else {
-				lcdSendChar(caracter);
-			}
-		}
-		// iterate until receiving "OK\r\n"
-		receivedBuffer[0] = receivedBuffer[1];
-		receivedBuffer[1] = receivedBuffer[2];
-		receivedBuffer[2] = receivedBuffer[3];
-		receivedBuffer[3] = caracter;
-		if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K' &&	receivedBuffer[2] == '\r' && receivedBuffer[3] == '\n') {
-			data_received = false;
-			break;
-		}
-	}
-}
-
-void printBuff(char *buff){
-	int i = 0;
-	char caracter=0x00;
-	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
-	clear();
-	while (1) {
-		caracter = buff[i];
-		i++;
-		if (caracter==0x0a) {
-			lcdSendStr("lf"); //debug poner
-		}
-		else {
-			if (caracter==0x0d) {
-				lcdSendStr("cr"); //debug poner
-			}
-			else {
-				lcdSendChar(caracter);
-			}
-		}
-		// iterate until receiving "OK\r\n"
-		receivedBuffer[0] = receivedBuffer[1];
-		receivedBuffer[1] = receivedBuffer[2];
-		receivedBuffer[2] = receivedBuffer[3];
-		receivedBuffer[3] = caracter;
-		if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K' &&	receivedBuffer[2] == '\r' && receivedBuffer[3] == '\n') {
-			data_received = false;
-			break;
-		}
-	}
+void pruebaOLED(){
+	lcd_init(LCD_DISP_ON); // Inicia OLED
+	//ssd1306_lcd_clrscr();	// Limpia OLED
+	FillDisplay(0x00);
+	//_delay_ms(500);
+	oledPutString("BALATRON", 0, 10);
+	oledPutString("PRUEBA BG95", 1, 0);
+	oledPutString("INBUFF:", 2, 0);
+	
 }
 
 ///// las originales /////
@@ -356,41 +154,3 @@ void showBuff(){
 	}
 }
 */
- 
-float readTemperature() {
-	float temp = 32.5; //read temperature data from a sensor
-	return temp;
-}
-
-void readLight() {
-	//read light data from a sensor
-}
-
-void sendATCommands(char *msg) {
-	//DrvUSART_SendStr("at\r\n"); //debug quitar
-	DrvUSART_SendStr(msg);
-	//leeUART(); //maybe we need LF and CR, in that case use these functions instead
-	//showBuff(); //debug: dejar
-	storeUART();
-	show_stored();
-}
-
-void controlLED(bool state) {
-	if (state) {
-		PORTB |= (1 << 0); // Turn on PB0 LED
-	}
-	else {
-		PORTB &= ~(1 << 0); // Turn off PB0 LED
-	}
-}
-
-void pruebaOLED(){
-	lcd_init(LCD_DISP_ON); // Inicia OLED
-	//ssd1306_lcd_clrscr();	// Limpia OLED
-	FillDisplay(0x00);
-	//_delay_ms(500);
-	oledPutString("BALATRON", 0, 10);
-	oledPutString("PRUEBA BG95", 1, 0);
-	oledPutString("INBUFF:", 2, 0);
-	
-}
