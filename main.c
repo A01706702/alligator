@@ -15,6 +15,7 @@
  * Se implementa una maquina de estados para mandar y recibir comandos con el BG95
  */ 
 
+// STATE MACHINE!!!! //
 #ifndef F_CPU
 #define F_CPU 9216000UL
 #endif
@@ -48,6 +49,8 @@ extern void init_modules(void); //external definitions
 void leeUART(void);
 void showBuff(void);
 void printBuff(char *);
+void storeUART(void);
+void show_stored(void);
 float readTemperature(void);
 void readLight();
 void readGPS(void);
@@ -110,7 +113,7 @@ int main(void)
 				//char str[20];
 				//sprintf(str,"%f",readTemperature());
 				//lcdSendStr(str);
-				//
+				
 				//lcdSendStr("light: ");
 				//readLight();
 				
@@ -122,30 +125,21 @@ int main(void)
 			case READING_GPS:
 			{
 				//lcdSendStr("gps ");
-				MESSAGE = "AT\r\n";
+				MESSAGE = "ATI\r\n";
 				sendATCommands(MESSAGE);
-				//guardar y procesar respuesta aqui
-				char COORDS[0x20] = {0};
-				for (int i = 0; i < sizeof(INBUFF)/sizeof(INBUFF[0]); i++) {
-					//copy values of "INBUFF" to "COORDS" array
-					//if (INBUFF[i] != 0x0a){
-						//COORDS[i] = INBUFF[i];
-					//}
-					COORDS[i] = INBUFF[i];
-					//printf ("%c ", COORDS[i]); //c for ascii
-				}
-				//printBuff(COORDS);
 				
 				//ask for GPS coords from BG95
-				//sendATCommands("AT+QGPS=1"); //OK
+				//sendATCommands("ATI\r\n"); //OK
+				//sendATCommands("AT+QGPS=1\r\n"); //OK
 				//sendATCommands("AT+QGPSLOC?"); //GPS COORDS
-				//char COORDS[0x20] = {0};
-				//for (int i = 0; i < sizeof(INBUFF)/sizeof(INBUFF[0]); i++) {
-					////copy values of "INBUFF" to "COORDS" array
-					//COORDS[i] = INBUFF[i];
-					////printf ("%c ", COORDS[i]); //c for ascii
-				//}
-				//// GNSS off:
+				char COORDS[0x20] = {0};
+				for (int i = 0; i < sizeof(INBUFF)/sizeof(INBUFF[0]); i++) {
+					COORDS[i] = INBUFF[i];
+				}
+				//printBuff(COORDS);
+				//lcdSendStr(COORDS);
+				
+				// GNSS off:
 				//sendATCommands("AT+QGPSEND "); //OK
 				
 				currentState = IDLE; // Transition back
@@ -160,11 +154,66 @@ int main(void)
 	return 0;
 }
 
-//working
-void leeUART() {
+//NOT STORING LF AND CR
+void storeUART() {
 	int i = 0;
 	char caracter;
 	//bool sequenceFound = false;
+	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
+	while (1) {
+		caracter = DrvUSART_GetChar(); //aqui cambia la bandera data_received //poner una interrupcion
+		if (data_received) { // Check if data is available
+			if (caracter == 0x0A) { // Line feed
+				// Do nothing, skip storing it
+			}
+			else if (caracter == 0x0D) { // Carriage return
+				// Do nothing, skip storing it
+			}
+			else {
+				INBUFF[i] = caracter;
+				i++;
+			}
+			// iterate until receiving "OK\r\n"
+			receivedBuffer[0] = receivedBuffer[1];
+			receivedBuffer[1] = receivedBuffer[2];
+			receivedBuffer[2] = receivedBuffer[3];
+			receivedBuffer[3] = caracter;
+			if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K' &&	receivedBuffer[2] == '\r' && receivedBuffer[3] == '\n') {
+				data_received = false;
+				break;
+			}
+		}
+		else {
+			lcdSendStr("No data");
+			break; // to not get stuck
+		}
+	}
+	INBUFF[i] = '\0'; // null terminate INBUFF to treat as string
+}
+//NOT SHOWING LF AND CR
+void show_stored(){
+	int i = 0;
+	char caracter=0x00;
+	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
+	clear();
+	while (1) {
+		caracter = INBUFF[i];
+		i++;
+		lcdSendChar(caracter);
+		// iterate until receiving "OK"
+		receivedBuffer[0] = receivedBuffer[1];
+		receivedBuffer[1] = caracter;
+		if (receivedBuffer[0] == 'O' &&	receivedBuffer[1] == 'K') {
+			data_received = false;
+			break;
+		}
+	}
+}
+
+//with LF and CR
+void leeUART() {
+	int i = 0;
+	char caracter;
 	char receivedBuffer[4] = {0}; // Buffer to hold the last four received characters
 	while (1) {
 		caracter = DrvUSART_GetChar(); //aqui cambia la bandera data_received //poner una interrupcion
@@ -188,8 +237,7 @@ void leeUART() {
 	}
 	//INBUFF[i] = '\0'; // null terminate INBUFF to treat as string
 }
-
-//working
+//with LF and CR
 void showBuff(){
 	int i = 0;
 	char caracter=0x00;
@@ -321,8 +369,10 @@ void readLight() {
 void sendATCommands(char *msg) {
 	//DrvUSART_SendStr("at\r\n"); //debug quitar
 	DrvUSART_SendStr(msg);
-	leeUART();
-	showBuff(); //debug: dejar
+	//leeUART(); //maybe we need LF and CR, in that case use these functions instead
+	//showBuff(); //debug: dejar
+	storeUART();
+	show_stored();
 }
 
 void controlLED(bool state) {

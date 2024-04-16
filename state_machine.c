@@ -1,4 +1,3 @@
-// /*
 // MAIN ORIGINAL!!! FUNCIONA!!!!!
 #ifndef F_CPU
 #define F_CPU 9216000UL
@@ -17,7 +16,8 @@
 extern void init_modules(void);
 
 // Variable globales
-char INBUFF[0x20];
+char INBUFF[0x20] = {0};
+bool data_received = false; // flag if communication is done
 
 // Prototipo
 void leeUART(void);
@@ -40,7 +40,7 @@ int main(void)
 	//PORTB = 0x00;
 	
 	clear(); // Limpia LCD
-	lcdSendStr("BALATRON INDUSTR");
+	lcdSendStr("BALA");
 	//FillDisplay(0x00);		//ssd1306_lcd_clrscr();	// Limpia OLED
 	//
 	//oledPutString("BALATRON", 0, 10);
@@ -53,7 +53,8 @@ int main(void)
 	{
 		DrvUSART_SendStr("at\r\n");
 		leeUART();
-		showBuff();
+		lcdSendStr(INBUFF);
+		//showBuff();
 		_delay_ms(500);
 	}
 	return 0;
@@ -107,4 +108,3 @@ void showBuff(){
 		i++;
 	}
 }
-*/
