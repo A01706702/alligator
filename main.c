@@ -55,7 +55,8 @@ int main(void)
 	DDRB = 0xff; //OUT PB
 	_delay_ms(500);
 
-	MESSAGE = "ati\r\n";
+	MESSAGE = "at\r\n"; //initialize message
+	//MESSAGE = "AT+QGPSLOC?\r\n";
 	clear(); // clear LCD
 	lcdSendStr("BALATRON");
 	initStateMachine();
@@ -63,12 +64,14 @@ int main(void)
 	while (1)
 	{
 		computeStateMachine();
-		//// searching in string
+		// searching in string
 		//char search[] = "ati\r\r\nQuectel\r\nBG95-M3\r\nRevision: BG95M3LAR02A03\r\n\r\nOK\r\n";
+		//char search[] = "ERROR";
 		//char *ptr = strstr(INBUFF, search);
 		//if (ptr != NULL) {
 			//clear();
-			//lcdSendStr("yea");
+			////lcdSendStr("yea");
+			//lcdSendStr(ptr);
 		//}
 		//else {
 			//clear();
@@ -97,60 +100,3 @@ void pruebaOLED(){
 	oledPutString("INBUFF:", 2, 0);
 	
 }
-
-///// las originales /////
-/*
- void leeUART(){ //solo lee la primera linea (pensar como leer mas de una linea)
-	 int i=0;
-	 char contLF=2; //hay varias lineas
-	 char caracter;
-	 //debug: cambiar a while(still_receiving) o hasta que deje de encontrar lf
-	 // puede ser un bool de que siga encontrando o no caracters
-	 while(contLF){
-		 caracter = DrvUSART_GetChar();
-		 if (caracter==0x0a) // Si caracter es igual a line feed
-		 {
-			 contLF--;
-			 INBUFF[i]=caracter; //no guardar LF //debug
-			 i++;
-		 }
-		 else
-		 {
-			 INBUFF[i]=caracter;
-			 i++;
-		 }
-	 }
- } 
- 
-void showBuff(){
-	int i=0;
-	int contLF=2;
-	char caracter=0x00;
-	clear();
-	while(contLF)
-	{
-		caracter = INBUFF[i];
-		if (caracter==0x0a)
-		{
-			contLF--;
-			lcdSendStr("lf"); //debug poner
-		}
-		else
-		{
-			if (caracter==0x0d)
-			{
-				lcdSendStr("cr"); //debug poner
-			}
-			else
-			{
-				////debug: para no imprimir comando enviado
-				//if((caracter != 0x61) && (caracter != 0x74) && (caracter != 0x69)){
-				//lcdSendChar(caracter); //debug: no imprimira comando enviado
-				//} //debug quitar
-				lcdSendChar(caracter);
-			}
-		}
-		i++;
-	}
-}
-*/
