@@ -35,12 +35,13 @@
 
 // global variables
 char *MESSAGE; //format: "at\r\n"
-char INBUFF[0x40] = {0}; //change size (?)
+char INBUFF[0x60] = {0}; //change size (?)
+char TEMP[0x78] = {0};
+char COORDS[0x60] = {0};
 bool data_received = false; // flag if communication is done
 
 // Function prototypes
 extern void init_modules(void); //external definitions
-void pruebaOLED(void);
 
 int main(void)
 {
@@ -64,6 +65,7 @@ int main(void)
 	while (1)
 	{
 		computeStateMachine();
+		
 		// searching in string
 		//char search[] = "ati\r\r\nQuectel\r\nBG95-M3\r\nRevision: BG95M3LAR02A03\r\n\r\nOK\r\n";
 		//char search[] = "ERROR";
@@ -88,15 +90,4 @@ int main(void)
 		_delay_ms(100);
 	}
 	return 0;
-}
-
-void pruebaOLED(){
-	lcd_init(LCD_DISP_ON); // Inicia OLED
-	//ssd1306_lcd_clrscr();	// Limpia OLED
-	FillDisplay(0x00);
-	//_delay_ms(500);
-	oledPutString("BALATRON", 0, 10);
-	oledPutString("PRUEBA BG95", 1, 0);
-	oledPutString("INBUFF:", 2, 0);
-	
 }
