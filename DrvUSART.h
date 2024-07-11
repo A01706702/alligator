@@ -44,6 +44,7 @@ enum emUcpol0
 void DrvUSART_Init(void);
 //void DrvUSART_SendChar(u8 u8Char); //cleaning
 void DrvUSART_SendStr(const char* str);
+void processData(char *buff, size_t buffsize);
 void processData_wait(char *buff, size_t buffsize, int timeout_ms);
 
 #endif

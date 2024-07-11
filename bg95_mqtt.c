@@ -18,33 +18,31 @@ bool mqtt_init(void){
 	TRY_COMMAND("AT+QGPSCFG=\"priority\",1,1", TEMP, sizeof(TEMP)); //redundant just in case
 	_delay_ms(1000);	
 	TRY_COMMAND("AT+QIACT=1", TEMP, sizeof(TEMP)); //Activate PDP context
+	_delay_ms(2000);
 	//REDUNDANT BECAUSE ITS IN BG95INIT (REMOVE al final):
 	TRY_COMMAND("AT+QSSLCFG=\"sslversion\",0,4;+QSSLCFG=\"ciphersuite\",0,0xFFFF;+QSSLCFG=\"seclevel\",0,0;+QSSLCFG=\"ignorelocaltime\",0,1;+QMTCFG=\"pdpcid\",0,1;+QMTCFG=\"ssl\",0,1,0", TEMP, sizeof(TEMP));
 	
 	//----- Open the client
-	if(TRY_COMMAND("AT+QMTOPEN=0,\"io.adafruit.com\",8883", TEMP, sizeof(TEMP))){
-		return TRY_COMMAND("AT+QMTCONN=0,\"bg95\",\"josepamb\",\"\"", TEMP, sizeof(TEMP));
-	}
-	else{
-		return false;
-	}
+	TRY_COMMAND("AT+QMTOPEN=0,\"io.adafruit.com\",8883", TEMP, sizeof(TEMP));
+	_delay_ms(20000);
+	TRY_COMMAND("AT+QMTCONN=0,\"bg95\",\"josepamb\",\"\"", TEMP, sizeof(TEMP));
+	_delay_ms(5000);
+	return true;
 }
 */
 bool mqtt_init(void){
 	char TEMP[128] = {0};
-	//cli();
 	TRY_COMMAND("AT+QGPSCFG=\"priority\",1,1", TEMP, sizeof(TEMP));//redundant just in case
 	_delay_ms(2000); // change of priority delay
 		
 	//REDUNDANT BECAUSE ITS IN BG95INIT (REMOVE al final):
 	TRY_COMMAND("AT+QSSLCFG=\"sslversion\",0,4;+QSSLCFG=\"ciphersuite\",0,0xFFFF;+QSSLCFG=\"seclevel\",0,0;+QSSLCFG=\"ignorelocaltime\",0,1;+QMTCFG=\"pdpcid\",0,1;+QMTCFG=\"ssl\",0,1,0", TEMP, sizeof(TEMP));
 	TRY_COMMAND("AT+QIACT=1",TEMP,sizeof(TEMP)); //wait for response at least 1 second here (already in trycommand)
-	//_delay_ms(1000); //brute force wait for context activation (might need it)
+	_delay_ms(2000); //brute force wait for context activation (might need it)
 		
 	if(TRY_COMMAND("AT+QMTOPEN=0,\"io.adafruit.com\",8883", TEMP, sizeof(TEMP))){
 		return TRY_COMMAND("AT+QMTCONN=0,\"bg95\",\"josepamb\",\"\"", TEMP, sizeof(TEMP));
 	}
-	//sei();
 	return false;
 }
 
@@ -155,8 +153,9 @@ void mqtt_disconnect(void){
 	//DrvUSART_SendStr("AT+QMTDISC=0");
 	//DrvUSART_SendStr("AT+QSSLCLOSE=0");
 	//DrvUSART_SendStr("AT+QIDEACT=1");
+	//processData(TEMP, sizeof(TEMP));
 	
-	////close everyting
+	//close everyting
 	TRY_COMMAND("AT+QMTCLOSE=0", TEMP, sizeof(TEMP));
 	TRY_COMMAND("AT+QMTDISC=0", TEMP, sizeof(TEMP));
 	//TRY_COMMAND("AT+QSSLCLOSE=0", TEMP, sizeof(TEMP));

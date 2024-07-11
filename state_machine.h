@@ -9,7 +9,7 @@
 #define STATE_MACHINE_H_
 
 //important as volatile
-volatile enum state {dormido, muestreo, envio, movimiento} estado;
+volatile enum state {dormido, muestreo, envio, movimiento, reparando} estado; //debug reparando
 
 void computeStateMachine(void);
 void computeStateMachine_fake(void);

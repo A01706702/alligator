@@ -83,6 +83,39 @@ void DrvUSART_SendStr(const char *str) {
 	_delay_ms(100); //IMPORTANT (cambiar por interrupcion TXC? no)
 }
 
+void processData(char *buff, size_t buffsize) {
+	for (size_t i = 0; i < buffsize; ++i) {
+		buff[i] = 0; // Set each byte to zero
+	}
+	int i = 0;
+	
+	////DEBUG: Comment for debugging with echo / Uncomment if echo is not necessary
+	//////////////************************************************////////////
+	//char *lastCommandPtr = &rxBuffer[rxReadPos]; //points to first character of received response each time.
+	//if(strncmp(lastCommandPtr, lastCommand, strlen(lastCommand)) == 0){ //compares pointer to lastcommand
+		//lastCommandPtr += strlen(lastCommand)+2; //moves pointer to after echoed command+\r\n
+		//rxReadPos = lastCommandPtr - rxBuffer; //gives you index where the pointer points
+	//}
+	//////////////************************************************////////////
+	
+	while (rxReadPos != rxWritePos && i < buffsize - 1) {
+		if (rxBuffer[rxReadPos] == '\r') {
+			//buff[i] = rxBuffer[rxReadPos];
+			//i++;
+		}
+		else if (rxBuffer[rxReadPos] == '\n') {
+			buff[i] = rxBuffer[rxReadPos]; //IMPORTANT DONT COMMENT
+			i++;
+		}
+		else {
+			buff[i] = rxBuffer[rxReadPos]; //store response
+			i++;
+		}
+		rxReadPos = (rxReadPos + 1) % BUFFER_SIZE;
+	}
+	buff[i] = '\0'; //null terminate
+}
+
 void processData_wait(char *buff, size_t buffsize, int timeout_ms) {
 	for (size_t i = 0; i < buffsize; ++i) {
 		buff[i] = 0; // Set each byte to zero

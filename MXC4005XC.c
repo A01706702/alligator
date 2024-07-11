@@ -27,23 +27,19 @@ ISR(INT0_vect){
 	//_delay_ms(1000);
 }
 */
+//int cont = 0;
+extern int puerta;
 ISR(INT0_vect){
-	mqtt_pub_str("josepamb/feeds/welcome-feed", "se moviooo"); //debug testing remove
 	u8 valor = LeeMXC4005XC_NI(MXC4005XC_REG_INT_SRC0); // Lee fuente de interrupcion
-	EscribeMXC4005XC_NI(MXC4005XC_REG_INT_CLR0, 0xcf); // Borra fuente de interrpcion
+	EscribeMXC4005XC_NI(MXC4005XC_REG_INT_CLR0, valor); //0xcf Borra fuente de interrpcion
+	EscribeMXC4005XC_NI(MXC4005XC_REG_INT_CLR1, 0x01);
 	
-	//valor = LeeMXC4005XC_NI(0x01);
-	//EscribeMXC4005XC_NI(0x01, valor);
 	
-	//u8 cpyValor= valor;
-	//valor = valor & 0x0f;
-	//cpyValor = cpyValor & 0xf0;
-	//PORTB |= valor;
-	//PORTD |= cpyValor;
-	PORTB |= (1<<PORTB5);
-	_delay_ms(100);
-	PORTB &= ~(1<<PORTB5);
-	EIFR |= (1<< INTF0); // Borra bandera de interrupcopn externa
+	//cont++;
+	//mqtt_pub_int("josepamb/feeds/welcome-feed", cont); //debug
+	
+	puerta++;
+	//mqtt_pub_int("josepamb/feeds/beacon.puerta", puerta); //debug
 }
 
 
@@ -52,11 +48,16 @@ void MXC4005XC_init(void){
 	EICRA |= (1 << ISC01);
 	EICRA &= ~(1 << ISC00);
 	EIMSK |= (1 << INT0); // Enable external interrupt INT0
-	EscribeMXC4005XC_NI(MXC4005XC_REG_INT_MASK0, MXC4005XC_INT_MASK0_EN); //enable all INT_MASK0 Interrupts
-	EscribeMXC4005XC_NI(MXC4005XC_REG_INT_MASK1, MXC4005XC_INT_MASK1_EN); //enable all INT_MASK1 Interrupts //debug
+	EscribeMXC4005XC_NI(MXC4005XC_REG_INT_MASK0, 0xcf); // Funciona con 0xcf solo si hay una inclinacion aprox de 45 grados del plano XY
+	EscribeMXC4005XC_NI(MXC4005XC_REG_DETECTION, 0x80);
 	
+//////////////////////////////////////////////////////////////////////////
+
+	//EscribeMXC4005XC_NI(MXC4005XC_REG_INT_MASK0, MXC4005XC_INT_MASK0_EN); //enable all INT_MASK0 Interrupts
+	//EscribeMXC4005XC_NI(MXC4005XC_REG_INT_MASK1, MXC4005XC_INT_MASK1_EN); //enable all INT_MASK1 Interrupts //debug
+	//
 	EscribeMXC4005XC_NI(MXC4005XC_REG_CTRL, MXC4005XC_CMD_2G_POWER_ON); //initial setup 2g
-	//EscribeMXC4005XC_NI(MXC4005XC_REG_DETECTION, MXC4005XC_DETECTION_PARAMS) //debug
+	////EscribeMXC4005XC_NI(MXC4005XC_REG_DETECTION, MXC4005XC_DETECTION_PARAMS) //debug
 }
 
 void EscribeMXC4005XC_NI(u8 regAddr, u8 data){
