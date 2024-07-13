@@ -4,6 +4,10 @@
 ## Description
 IOT cellular beacon implementation using BG95 and LGT8F328P
 
+****IMPORTANT NOTES:** 
+1. Add Adafruit IO key in bg95_mqtt.c but never post it to GitHub.
+2. Setup APN in bg95_init function. Some used so far: internet.itelcel.com, m2m.tele2.com, internet.oxio.com
+
 ## Functionalities
 
 - GNSS location
@@ -27,11 +31,9 @@ State machine control
 * [void GPS(void)](#GPS(void))
 * [void clear_Buffer(char *, size_t)](#clear_Buffer)
 * [void print_Buffer(char *, size_t)](#print_Buffer)
-* [void TRYING_GPS(char *)](#TRYING_GPS)
 * [void TRY_COMMAND(char *, char *, size_t)](#TRY_COMMAND)
 * [bool handle_Response(char *buffer, size_t buffersize)](#handle_Response)
 * [bool handleErrorCode(char *, size_t)](#handleErrorCode)
-* [void RETRY_COMMAND(int, char *, char *, size_t)](#RETRY_COMMAND)
 * [int toggleValue(int)](#toggleValue)
 
 ### DrvUSART.c
@@ -127,23 +129,13 @@ example code here
 4. ### temperatura
 	* not implemented yet
 5. ### GPS
-	* Enters location data retrieving routine, enables GNSS, then calls the function TRY_COMMAND to try and get coordinates multiple times
-6. ### clear_Buffer
-	* fills an array with zeros using memset
-7. ### print_Buffer
-	* calls lcdSendChar for each char in an array to print on LCD
+	* Enters location data retrieving routine, enables GNSS, then calls the function TRY_COMMAND to try and get fix and store location in COORDS, if there was a fix before, but none after, it stores the old coordinates.
 8. ### TRY_COMMAND
 	* receives a command and an array to store response, tries a command multiple times and handles specific errors if failed (not implemented yet). If command was successful it breaks
 9. ### handle_Response
 	* OK or ERROR handling with switch case. Will be changed to dictionary structure for error specific
 10. ### handleErrorCode
 	* different implementation of handle response with struct and error codes array
-11. ### TRYING_GPS
-	* TRY_COMMAND specific to GPS using COORDS buffer
-12. ### RETRY_COMMAND
-	* Different implementation for TRY_COMMAND using recursion
-13. ### toggleValue
-	* Toggles the received int between 0 and 1 using XOR. Useful for flags.
 
 
 
@@ -189,3 +181,44 @@ example code here
 	* Publishes an integer message to the specified MQTT topic.
 7. ### mqtt_disconnect
 	* Disconnects from the MQTT broker and deactivates context.
+
+## Resources and Notes
+
+### PCB antennas
+* Molex varias opciones
+https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.molex.co.th%2Fcontent%2Fdam%2Fmolex%2Fmolex-dot-com%2Fen_us%2Fpdf%2Fdatasheets%2Fgnss-antennas_ds_en-987651-5071.pdf&psig=AOvVaw2SxkOk_Co8FEA5opqKdM85&ust=1720828434945000&source=images&cd=vfe&opi=89978449&ved=0CAQQn5wMahcKEwio-tz3l6CHAxUAAAAAHQAAAAAQBA
+https://www.molex.com/en-us/products/part-detail/2065600050
+https://www.molex.com/content/dam/molex/testing/pcp/Standard%20Antennas.pdf?inline
+* YC0013AA
+https://www.digikey.com.mx/en/products/detail/quectel/YC0013AA/15706710
+* 1004259 – GPS / GLONASS / GNSS Ceramic Patch Antenna (Active)
+https://www.kyocera-avx.com/product/gps-glonass-ceramic-patch-antenna-active-1004259/
+* YG0062AA
+https://www.mouser.mx/ProductDetail/Quectel/YG0062AA?qs=QNEnbhJQKvZQB9RTVp%252B88w%3D%3D&mgh=1&vip=1&utm_id=17633969509&gad_source=1&gclid=Cj0KCQjwv7O0BhDwARIsAC0sjWP6Ht4U0aBaGxAZfOYmbwAUrw4FhI6se1dsYJhRt-Cf92TVO6nSZlkaApY1EALw_wcB
+* 206640-0001
+https://www.mouser.mx/ProductDetail/Molex/206640-0001?qs=wQWKWGyrjFn4T%2FbNfM6cBQ%3D%3D&mgh=1&vip=1&utm_id=17633969509&gad_source=1&gclid=Cj0KCQjwv7O0BhDwARIsAC0sjWOccV6c9ailu2SqT5_0FgPUEcwUsPVi3XD65BUQElLc4wG4euWo3U4aAnGaEALw_wcB
+* YC0013AA
+https://www.mouser.mx/ProductDetail/Quectel/YC0013AA?qs=7D1LtPJG0i3qgrXnHwxS8Q%3D%3D
+* 4G+GPS PCB Flexible Antenna With 1.13mm Cable (L-10cm) + UFL Connector
+https://eteily.com/flexible-pcb-antenna/974-1288-4ggps-pcb-flexible-antenna-with-113mm-cable-l-10cm-ufl-connector.html#/11-color-black/30-product_type-antenna/40-antenna_type-embedded/45-antenna_mounting-pcb_mount/71-antenna_technology-gps_l1/181-antenna_type-flexible_pcb_antenna
+* GPS PCB Flexible Antenna With 1.13mm Cable (L-10cm) + UFL Connector
+https://eteily.com/flexible-pcb-antenna/992-1325-gps-pcb-flexible-antenna-with-113mm-cable-l-10cm-ufl-connector.html#/11-color-black/30-product_type-antenna/40-antenna_type-embedded/45-antenna_mounting-pcb_mount/71-antenna_technology-gps_l1/170-antenna_frequency-157542mhz/181-antenna_type-flexible_pcb_antenna
+
+### Notes:
+* Important to setup APN for LTE connection.
+Some Resources:
+https://www.mcc-mnc.com/
+https://www.numberingplans.com/?page=analysis&sub=imsinr
+* Multiple commands can be placed on a single line using a semi-colon (;) between commands. Only the first command should have AT prefix. Commands can be in upper or lower case.
+* processdata_wait relies con interruptions so dont disable them.
+* GPS takes at least 18 seconds (tries 5 times with a 3 second wait for finding a fix)
+* Add Adafruit IO key in bg95_mqtt.c
+* code the error functions URCs for mqtt in error_handling
+* handle no service (reiniciar bg95 o algo)
+* +QMTOPEN: 0,3 debug this PDP
+* Logic for counting when the door was opened and check if its open or closed.
+* Add state for repairing connection with a 5-10 minute timeout to save battery.
+
+- Accelerometer Interrupt (Pin 32 PD2)
+- RXD (pin 30 PD0)
+- TXD (pin 31 PD1)
