@@ -4,19 +4,22 @@
 ## Description
 IOT cellular beacon implementation using BG95 and LGT8F328P
 
-****IMPORTANT NOTES:** 
-1. Add Adafruit IO key in bg95_mqtt.c but never post it to GitHub.
-2. Setup APN in bg95_init function. Some used so far: internet.itelcel.com, m2m.tele2.com, internet.oxio.com
+****IMPORTANT TO DO:** 
+1. Check power down mode in microcontroller (doesnt work at the same time with accelerometer)
+2. Add Adafruit IO key in bg95_mqtt.c but never post it to GitHub.
+3. Change cloud feeds names (mqtt topics) in state_machine.c, and main.c
+4. Setup APN in bg95_init function. Some used so far: internet.itelcel.com, m2m.tele2.com, internet.oxio.com
 
-## Functionalities
+### Functionalities
 
 - GNSS location
 - MQTT (SSL) cloud communication
 - UART between chip and LTE module
 - Motion detection (MXC4005XC)
 
-## Implementation
+### Implementation
 State machine control
+***NOTE:** state "movimiento" is unused because of MXC4005XC's ISR
 
 ![state machine](fsm.jpeg)
 
@@ -25,27 +28,22 @@ State machine control
 ### StateMachine.c
 
 * [void computeStateMachine(void)](#computeStateMachine)
+* [void computeStateMachine_fake(void)](#computeStateMachine_fake)
 * [void sendATCommands(char *)](#sendATCommands)
 * [void iluminacion(void)](#iluminacion)
 * [void temperatura(void)](#temperatura)
 * [void GPS(void)](#GPS(void))
-* [void clear_Buffer(char *, size_t)](#clear_Buffer)
-* [void print_Buffer(char *, size_t)](#print_Buffer)
 * [void TRY_COMMAND(char *, char *, size_t)](#TRY_COMMAND)
 * [bool handle_Response(char *buffer, size_t buffersize)](#handle_Response)
 * [bool handleErrorCode(char *, size_t)](#handleErrorCode)
-* [int toggleValue(int)](#toggleValue)
 
 ### DrvUSART.c
 
 * [void DrvUSART_Init(void)](#Init)
 * [void DrvUSART_SendChar(u8 u8Char)](#DrvUSART_SendChar)
 * [void DrvUSART_SendStr(char* str)](#DrvUSART_SendStr)
-* [u8 DrvUSART_GetChar(void)](#DrvUSART_GetChar)
-* [void DrvUSART_GetString(void)](#DrvUSART_GetString)
 * [void processData(char *, size_t)](#processData)
-* [void appendSerial(char)](#appendSerial)
-* [void serialWrite(char *)](#serialWrite)
+* [void processData_wait(char *, size_t)](#processData_wait)
 
 
 ### MXC4005XC.c
@@ -84,44 +82,31 @@ State machine control
 
 1. ### Init
 	* Autogen USART registers and ports initializer. Check macros.h for enabling/disabling interruptions
-```
- example code here
-```
 2. ### DrvUSART_SendChar
 	&nbsp;&ensp;&ensp; ***NOT USING INTERRUPTION***
 	* Busy waits until USART data register is empty, then writes received char into UDR0
 3. ### DrvUSART_SendStr
 	&nbsp;&ensp;&ensp; ***NOT USING INTERRUPTION***
 	* Receives array pointer and for each char it calls DrvUSART_SendChar.
-4. ### DrvUSART_GetChar
-	&nbsp;&ensp;&ensp; ***NOT USING INTERRUPTION***
-	* Busy waits until USARTs data register is full with unread data, then returns UDR0
-5. ### DrvUSART_GetString
-	&nbsp;&ensp;&ensp; ***USING INTERRUPTION***
-	* Reads circular RX buffer and prints each char on the LCD. This method updates rxReadPos on the circular buffer rxBuffer.
 6. ### processData
 	&nbsp;&ensp;&ensp; ***USING INTERRUPTION***
-	* IMPORTANT: uncomment ptr lines for proper working, right now its commented for debugging purposes
-	* Function to handle responses with and without echoed command.
-	* Receives pointer to linear array (char) and fills it with zeros
-	* Pointer to first char of actual received response in rxBuffer
-	* compares pointer to last Command, if last Command was found it skips it
+	* COMMENTED POINTER LINES:
+	Function to handle responses with and without echoed command.
+	Receives pointer to linear array (char) and fills it with zeros
+	Pointer to first char of actual received response in rxBuffer
+	compares pointer to last Command, if last Command was found it skips it
+	* ACTUAL USE: Stores characters received in serial port which are sent by BG95, Copies each char into received array and updates rxReadPos.
+7. ### processData_wait
+	* If Rx buffer is empty, wait timeout_ms for a response (Used for connection commands which take more time to respond)
 	* Copies each char into received array and updates rxReadPos.
-7. ### appendSerial
-	&nbsp;&ensp;&ensp; ***USING INTERRUPTION***
-	* Fills circular TX Buffer with received char to transmit
-8. ### serialWrite
-	&nbsp;&ensp;&ensp; ***USING INTERRUPTION***
-	* Receives array pointer and for each char it calls appendSerial.
-	* Sends dummy byte to trigger interruption just in case
 
 ## state_machine.c
 
 1.  ### computeStateMachine
-	* call it to enter state machine
-```
-example code here
-```
+	* call it to enter state machine. Muestreo Samples data, Envio sends to cloud, Dormido is Idle. Turns off after each state. It enters according to counters in ISR from Watchdog Timer.
+
+2. ### computeStateMachine_fake
+	* Tryout state machine for debugging, not turning off the module and not disconnecting from mqtt (several versions for different debugging).
 2. ### sendATCommands
 	* For testing and debugging, not used much. It calls DrvUSART_SendStr to send a command and DrvUSART_GetString to print it on the LCD
 3. ### iluminacion
@@ -135,7 +120,7 @@ example code here
 9. ### handle_Response
 	* OK or ERROR handling with switch case. Will be changed to dictionary structure for error specific
 10. ### handleErrorCode
-	* different implementation of handle response with struct and error codes array
+	* different implementation of handle response with struct and error codes array (check error_handling.c)
 
 
 
@@ -205,16 +190,21 @@ https://eteily.com/flexible-pcb-antenna/974-1288-4ggps-pcb-flexible-antenna-with
 https://eteily.com/flexible-pcb-antenna/992-1325-gps-pcb-flexible-antenna-with-113mm-cable-l-10cm-ufl-connector.html#/11-color-black/30-product_type-antenna/40-antenna_type-embedded/45-antenna_mounting-pcb_mount/71-antenna_technology-gps_l1/170-antenna_frequency-157542mhz/181-antenna_type-flexible_pcb_antenna
 
 ### Notes:
+* blinking fast means connecting to mqtt
+* blinking slow off fast on means no network
+* blinking fast off, slow on means connected to network
 * Important to setup APN for LTE connection.
 Some Resources:
 https://www.mcc-mnc.com/
 https://www.numberingplans.com/?page=analysis&sub=imsinr
+* Change counter values on WDT ISR (main.c) for frequency of state change
 * Multiple commands can be placed on a single line using a semi-colon (;) between commands. Only the first command should have AT prefix. Commands can be in upper or lower case.
+* Send delay (1 second) between each mqtt publish command
 * processdata_wait relies con interruptions so dont disable them.
 * GPS takes at least 18 seconds (tries 5 times with a 3 second wait for finding a fix)
 * Add Adafruit IO key in bg95_mqtt.c
 * code the error functions URCs for mqtt in error_handling
-* handle no service (reiniciar bg95 o algo)
+* handle when there is no service (reiniciar bg95 o algo)
 * +QMTOPEN: 0,3 debug this PDP
 * Logic for counting when the door was opened and check if its open or closed.
 * Add state for repairing connection with a 5-10 minute timeout to save battery.
@@ -222,3 +212,6 @@ https://www.numberingplans.com/?page=analysis&sub=imsinr
 - Accelerometer Interrupt (Pin 32 PD2)
 - RXD (pin 30 PD0)
 - TXD (pin 31 PD1)
+- BG95 works at baud rate: 115200
+
+* Antena chiquita no sirve?
